@@ -22,7 +22,7 @@ variable "route53_zone_id" {
 
 variable "vpc_id" {
   type    = string
-  default = "If you provide vpc_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc."
+  description = "If you provide vpc_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc."
 }
 
 variable "public_subnets" {
@@ -57,11 +57,6 @@ variable "es_node_number" {
   type        = number
   description = "Use it when you want to create es with nodes smaller than the number of private_subnets provided. It only makes sense when using vpc."
   default     = null
-}
-
-variable "es_master_user_arn" {
-  type    = string
-  default = null
 }
 
 variable "service_ingress_cidr_rules" {

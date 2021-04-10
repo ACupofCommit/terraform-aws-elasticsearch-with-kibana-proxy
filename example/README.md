@@ -16,7 +16,6 @@ and sends a log or executes a query.
 
 Refer to outputs of terraform apply, set environments like belows:
 ```
-export LAMBDA_EXECUTION_ROLE_ARN=arn:aws:iam::530000000092:role/ewkp-example-lambda-excution-role
 export ES_HOST=vpc-ewkp-example-acd3-jovvoucu376smmizrn4c4g6lbe.ap-northeast-1.es.amazonaws.com
 export ES_NAME=ewkp-example-acd3
 export SECURITY_GROUP_ID=sg-0a94fc7a7329ff7c5

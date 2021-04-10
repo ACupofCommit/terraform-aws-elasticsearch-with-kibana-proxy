@@ -2,7 +2,7 @@ import type { AWS } from '@serverless/typescript'
 import packageJson from './package.json'
 
 const {AWS_DEFAULT_REGION} = process.env
-const {SECURITY_GROUP_ID='', PRIVATE_SUBNET_ID1='', PRIVATE_SUBNET_ID2='', ES_NAME, LAMBDA_EXECUTION_ROLE_ARN} = process.env
+const {SECURITY_GROUP_ID='', PRIVATE_SUBNET_ID1='', PRIVATE_SUBNET_ID2='', ES_NAME} = process.env
 const {ES_HOST, ES_MASTER_USERNAME, ES_MASTER_PASSWORD} = process.env
 
 const logEnv = (name: string) => console.log(`${name}: ${process.env[name]}`)
@@ -12,7 +12,6 @@ if (!ES_HOST) throw new Error('ES_HOST is required')
 if (!ES_NAME) throw new Error('ES_NAME is required')
 if (!ES_MASTER_USERNAME) throw new Error('ES_MASTER_USERNAME is required')
 if (!ES_MASTER_PASSWORD) throw new Error('ES_MASTER_PASSWORD is required')
-if (!LAMBDA_EXECUTION_ROLE_ARN) throw new Error('LAMBDA_EXECUTION_ROLE_ARN is required')
 
 if (SECURITY_GROUP_ID && !(PRIVATE_SUBNET_ID1 + PRIVATE_SUBNET_ID2)) {
   throw new Error('SubnetIds and SecurityIds must coexist or be both empty list.')
@@ -68,9 +67,6 @@ const serverlessConfiguration: AWS = {
     environment: {
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
       // https://www.serverless.com/framework/docs/providers/aws/guide/variables#reference-variables-in-javascript-files
-    },
-    iam: {
-      role: LAMBDA_EXECUTION_ROLE_ARN,
     },
   },
   functions: {
