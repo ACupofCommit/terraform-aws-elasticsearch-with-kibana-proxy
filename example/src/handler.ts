@@ -1,19 +1,16 @@
 // https://dev.to/suparnatural/aws-elasticsearch-with-serverless-lambda-2m9b
-
 import { APIGatewayProxyHandler } from 'aws-lambda'
 import { Client } from '@elastic/elasticsearch'
-import AWS from 'aws-sdk'
-// @ts-expect-error
-import createAwsElasticsearchConnector from 'aws-elasticsearch-connector'
 
-const awsConfig = new AWS.Config({})
-const ES_HOST = process.env.ES_HOST
-console.log(ES_HOST)
+const {ES_HOST, ES_MASTER_USERNAME, ES_MASTER_PASSWORD} = process.env
 
 export const index: APIGatewayProxyHandler = async (event) => {
   const client = new Client({
-    ...createAwsElasticsearchConnector(awsConfig),
     node: `https://${ES_HOST}`,
+    auth: {
+      username: ES_MASTER_USERNAME || '',
+      password: ES_MASTER_PASSWORD || '',
+    }
   })
 
   const res = await client.indices.get({

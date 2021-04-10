@@ -2,13 +2,16 @@ import type { AWS } from '@serverless/typescript'
 import packageJson from './package.json'
 
 const {AWS_DEFAULT_REGION} = process.env
-const {ES_HOST, SECURITY_GROUP_ID='', PRIVATE_SUBNET_ID1='', PRIVATE_SUBNET_ID2='', ES_NAME, LAMBDA_EXECUTION_ROLE_ARN} = process.env
+const {SECURITY_GROUP_ID='', PRIVATE_SUBNET_ID1='', PRIVATE_SUBNET_ID2='', ES_NAME, LAMBDA_EXECUTION_ROLE_ARN} = process.env
+const {ES_HOST, ES_MASTER_USERNAME, ES_MASTER_PASSWORD} = process.env
 
 const logEnv = (name: string) => console.log(`${name}: ${process.env[name]}`)
 
 if (!AWS_DEFAULT_REGION) throw new Error('AWS_DEFAULT_REGION is required')
 if (!ES_HOST) throw new Error('ES_HOST is required')
 if (!ES_NAME) throw new Error('ES_NAME is required')
+if (!ES_MASTER_USERNAME) throw new Error('ES_MASTER_USERNAME is required')
+if (!ES_MASTER_PASSWORD) throw new Error('ES_MASTER_PASSWORD is required')
 if (!LAMBDA_EXECUTION_ROLE_ARN) throw new Error('LAMBDA_EXECUTION_ROLE_ARN is required')
 
 if (SECURITY_GROUP_ID && !(PRIVATE_SUBNET_ID1 + PRIVATE_SUBNET_ID2)) {
@@ -82,6 +85,8 @@ const serverlessConfiguration: AWS = {
       ],
       environment: {
         ES_HOST: ES_HOST,
+        ES_MASTER_USERNAME: ES_MASTER_USERNAME,
+        ES_MASTER_PASSWORD: ES_MASTER_PASSWORD,
       }
     },
   }

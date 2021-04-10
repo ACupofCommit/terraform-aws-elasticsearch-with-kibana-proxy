@@ -3,13 +3,6 @@ server {
     server_name $KIBANA_HOST;
     rewrite ^/$ https://$KIBANA_HOST/_plugin/kibana redirect;
 
-    location = /_plugin/kibana {
-        # Redirect login page with redirect_uri
-        # https://${COGNITO_HOST}/login?response_type=code&client_id=5m3h285mebqljad3seoj9ca9bh&redirect_uri=https://kibana3.aluc.io/_plugin/kibana/app/kibana
-        # ex: https://es-user-pool-domain.auth.ap-northeast-1.amazoncognito.com/login?response_type=code&client_id=5m3h285mebqljad3seoj9ca9bh&redirect_uri=https://kibana3.aluc.io/_plugin/kibana/app/kibana
-        rewrite ^ https://${USER_POOL_DOMAIN}.auth.${AWS_REGION}.amazoncognito.com/login?response_type=code&client_id=${COGNITO_CLIENT_ID}&redirect_uri=https://${KIBANA_HOST}%2F_plugin/kibana/app/kibana;
-    }
-
     location = /health {
       return 200 'gangnam style!';
     }
@@ -17,9 +10,6 @@ server {
     location ^~ /_plugin/kibana {
         # Forward requests to Kibana
         proxy_pass https://${ES_HOST}/_plugin/kibana;
-
-        # Handle redirects to Amazon Cognito
-        proxy_redirect https://${COGNITO_HOST} https://$KIBANA_HOST;
 
         # Update cookie domain and path
         proxy_cookie_domain ${ES_HOST} $KIBANA_HOST;
@@ -36,17 +26,8 @@ server {
     }
 
     location ~ \/(log|sign|error|fav|forgot|change|confirm) {
-        # Forward requests to Cognito
-        proxy_pass https://${COGNITO_HOST};
-
         # Handle redirects to Kibana
         proxy_redirect https://${ES_HOST} https://$KIBANA_HOST;
-
-        # Handle redirects to Amazon Cognito
-        proxy_redirect https://${COGNITO_HOST} https://$KIBANA_HOST;
-
-        # Update cookie domain
-        proxy_cookie_domain ${COGNITO_HOST} $KIBANA_HOST;
     }
 }
 

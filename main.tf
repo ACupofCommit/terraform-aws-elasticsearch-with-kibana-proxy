@@ -14,7 +14,6 @@ locals {
   nginx_config_template = base64encode(file("${path.module}/assets/default.template"))
   es_name               = "${var.name_prefix}-${local.suffix}"
   container_port        = 80
-  service_port          = 443
   target_container_name = "${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
   logs_cloudwatch_group = "/ecs/${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
 }
@@ -37,70 +36,6 @@ resource "aws_route53_record" "kibana" {
     name                   = aws_lb.main[0].dns_name
     zone_id                = aws_lb.main[0].zone_id
     evaluate_target_health = true
-  }
-}
-
-resource "aws_cognito_user_pool" "main" {
-  name = "${var.name_prefix}-user-pool-${local.suffix}"
-  admin_create_user_config {
-    allow_admin_create_user_only = true
-  }
-  tags = var.tags
-}
-
-//resource "aws_cognito_user_group" "main" {
-//  name         = "${var.name_prefix}-user-group-${local.suffix}"
-//  user_pool_id = aws_cognito_user_pool.main.id
-//  description  = "${var.name_prefix} user group for kibana access"
-//  precedence   = 0
-//  role_arn     = "arn:aws:iam::${local.account_id}:role/service-role/CognitoAccessForAmazonES"
-//}
-
-# This can not be managed by terraform.
-# After elasticsearch deploy, manually destroy it and
-# import the resource created by the elasticsearch configuration.
-# ex)
-# $ terraform destroy -target module.modulename.aws_cognito_user_pool_client.es
-# $ terraform import module.modulename.aws_cognito_user_pool_client.es <user_pool_id>/<user_pool_client_id>
-# id values can be found in AWS Console cognito page.
-resource "aws_cognito_user_pool_client" "es" {
-  user_pool_id = aws_cognito_user_pool.main.id
-  lifecycle {
-    ignore_changes = [
-      name,
-      allowed_oauth_flows_user_pool_client, supported_identity_providers,
-      allowed_oauth_flows, allowed_oauth_scopes,
-      explicit_auth_flows,
-    ]
-  }
-
-  allowed_oauth_flows_user_pool_client = true
-  name                                 = "this-resource-will-be-destroyed-${local.suffix}"
-  callback_urls = [
-    "https://${var.kibana_custom_domain}/_plugin/kibana/app/kibana",
-    "https://${aws_elasticsearch_domain.es.endpoint}/_plugin/kibana/app/kibana",
-  ]
-  logout_urls = [
-    "https://${var.kibana_custom_domain}/_plugin/kibana/app/kibana",
-    "https://${aws_elasticsearch_domain.es.endpoint}/_plugin/kibana/app/kibana",
-  ]
-  allowed_oauth_flows          = ["code"]              // code, implicit, client_credentials).
-  allowed_oauth_scopes         = ["openid", "profile"] // phone, email, openid, profile, and aws.cognito.signin.user.admin).
-  supported_identity_providers = []
-}
-
-resource "aws_cognito_user_pool_domain" "main" {
-  domain       = "es-user-pool-domain"
-  user_pool_id = aws_cognito_user_pool.main.id
-}
-
-resource "aws_cognito_identity_pool" "main" {
-  identity_pool_name               = "identity pool for cognito"
-  allow_unauthenticated_identities = true
-
-  // It should not be modify after ES creation
-  lifecycle {
-    ignore_changes = [cognito_identity_providers]
   }
 }
 
@@ -175,16 +110,8 @@ resource "aws_elasticsearch_domain" "es" {
 
   advanced_security_options {
     enabled = true
-    master_user_options {
-      master_user_arn = var.es_master_user_arn != "" ? var.es_master_user_arn : aws_iam_role.authenticated.arn
-    }
-  }
-
-  cognito_options {
-    enabled          = true
-    user_pool_id     = aws_cognito_user_pool.main.id
-    identity_pool_id = aws_cognito_identity_pool.main.id
-    role_arn         = "arn:aws:iam::${local.account_id}:role/service-role/CognitoAccessForAmazonES"
+    internal_user_database_enabled = true
+    # After apply, go AWS Web Console to create master username/password
   }
 
   advanced_options = {
@@ -217,114 +144,6 @@ CONFIG
   }
 }
 
-resource "aws_iam_role" "authenticated" {
-  name = "cognito_authenticated"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "cognito-identity.amazonaws.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "cognito-identity.amazonaws.com:aud": "${aws_cognito_identity_pool.main.id}"
-        },
-        "ForAnyValue:StringLike": {
-          "cognito-identity.amazonaws.com:amr": "authenticated"
-        }
-      }
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy" "authenticated" {
-  name = "authenticated_policy"
-  role = aws_iam_role.authenticated.id
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "mobileanalytics:PutEvents",
-        "cognito-sync:*",
-        "cognito-identity:*"
-      ],
-      "Resource": [
-        "*"
-      ]
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role" "unauthenticated" {
-  name = "cognito_unauthenticated"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "cognito-identity.amazonaws.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "cognito-identity.amazonaws.com:aud": "${aws_cognito_identity_pool.main.id}"
-        },
-        "ForAnyValue:StringLike": {
-          "cognito-identity.amazonaws.com:amr": "unauthenticated"
-        }
-      }
-    }
-  ]
-}
-EOF
-}
-resource "aws_iam_role_policy" "unauthenticated" {
-  name = "authenticated_policy"
-  role = aws_iam_role.unauthenticated.id
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "mobileanalytics:PutEvents",
-        "cognito-sync:*"
-      ],
-      "Resource": [
-        "*"
-      ]
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_cognito_identity_pool_roles_attachment" "main" {
-  identity_pool_id = aws_cognito_identity_pool.main.id
-
-  roles = {
-    "authenticated"   = aws_iam_role.authenticated.arn
-    "unauthenticated" = aws_iam_role.unauthenticated.arn
-  }
-}
 
 #
 # KMS
@@ -393,20 +212,37 @@ resource "aws_lb" "main" {
   subnets            = var.public_subnets
 }
 
-resource "aws_lb_listener" "http" {
+resource "aws_lb_listener" "https" {
   count             = length(aws_lb.main)
-  load_balancer_arn = aws_lb.main[0].id
-  port              = local.service_port
+  load_balancer_arn = aws_lb.main[0].arn
+  port              = "443"
   protocol          = "HTTPS"
   certificate_arn   = module.acm.this_acm_certificate_arn
 
   default_action {
-    target_group_arn = aws_lb_target_group.http.id
+    target_group_arn = aws_lb_target_group.main.id
     type             = "forward"
   }
 }
 
-resource "aws_lb_target_group" "http" {
+resource "aws_lb_listener" "http" {
+  count             = length(aws_lb.main)
+  load_balancer_arn = aws_lb.main[0].arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_target_group" "main" {
   name     = "${var.name_prefix}-${local.container_port}-v5"
   port     = local.container_port
   protocol = "HTTP"
@@ -473,8 +309,18 @@ resource "aws_security_group_rule" "app_lb_allow_all_http" {
   count             = var.vpc_id != "" ? 1 : 0
   security_group_id = aws_security_group.lb_sg[0].id
   type              = "ingress"
-  from_port         = local.service_port
-  to_port           = local.service_port
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = var.service_ingress_cidr_rules
+}
+
+resource "aws_security_group_rule" "app_lb_allow_all_https" {
+  count             = var.vpc_id != "" ? 1 : 0
+  security_group_id = aws_security_group.lb_sg[0].id
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
   protocol          = "tcp"
   cidr_blocks       = var.service_ingress_cidr_rules
 }
@@ -497,7 +343,7 @@ module "ecs-service-kibana-proxy" {
 
   lb_target_groups = [
     {
-      lb_target_group_arn         = aws_lb_target_group.http.arn
+      lb_target_group_arn         = aws_lb_target_group.main.arn
       container_port              = local.container_port
       container_health_check_port = local.container_port
     },
@@ -542,10 +388,7 @@ module "ecs-service-kibana-proxy" {
       environment = [
         { name : "KIBANA_HOST", value : var.kibana_custom_domain },
         { name : "ES_HOST", value : aws_elasticsearch_domain.es.endpoint },
-        { name : "COGNITO_HOST", value : aws_cognito_user_pool_domain.main.cloudfront_distribution_arn },
-        { name : "COGNITO_CLIENT_ID", value : aws_cognito_user_pool_client.es.id },
         { name : "AWS_REGION", value : local.region },
-        { name : "USER_POOL_DOMAIN", value : aws_cognito_user_pool_domain.main.domain },
       ]
       mountPoints = []
       volumesFrom = []
