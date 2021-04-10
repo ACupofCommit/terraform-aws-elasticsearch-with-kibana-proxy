@@ -1,0 +1,7 @@
+{
+  "name": "terraform-aws-elasticsearch-in-vpc-with-cognito",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "aluc <b6pzeusbc54tvhw5jgpyw8pwz2x6gs@gmail.com>",
+  "license": "MIT"
+}
