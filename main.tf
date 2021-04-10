@@ -15,7 +15,7 @@ locals {
   es_name               = "${var.name_prefix}-${local.suffix}"
   container_port        = 80
   target_container_name = "${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
-  logs_cloudwatch_group = "/ecs/${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
+  ecs_log_group_name    = "/ecs/${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
 }
 
 module "acm" {
@@ -45,9 +45,9 @@ module "lambda_security_group" {
   name        = "${var.name_prefix}-lambda-${local.suffix}"
   description = "${var.name_prefix} lambda security group"
   vpc_id      = var.vpc_id
-
+  tags        = var.tags
   egress_with_source_security_group_id = [{
-    rule        = "https-443-tcp"
+    rule                     = "https-443-tcp"
     source_security_group_id = module.es_security_group[0].this_security_group_id
   }]
 }
@@ -58,7 +58,7 @@ module "es_security_group" {
   name        = "${var.name_prefix}-es-${local.suffix}"
   description = "${var.name_prefix} elasticsearch security group"
   vpc_id      = var.vpc_id
-
+  tags        = var.tags
   ingress_with_cidr_blocks = [
     for s in var.public_subnets_cidr_blocks : {
       rule        = "https-443-tcp"
@@ -66,7 +66,7 @@ module "es_security_group" {
     }
   ]
   ingress_with_source_security_group_id = [{
-    rule        = "https-443-tcp"
+    rule                     = "https-443-tcp"
     source_security_group_id = module.lambda_security_group[0].this_security_group_id
   }]
 }
@@ -109,8 +109,12 @@ resource "aws_elasticsearch_domain" "es" {
   }
 
   advanced_security_options {
-    enabled = true
+    enabled                        = true
     internal_user_database_enabled = true
+    master_user_options {
+      master_user_name     = "admin"
+      master_user_password = var.es_master_user_password
+    }
     # After apply, go AWS Web Console to create master username/password
   }
 
@@ -243,17 +247,13 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_target_group" "main" {
-  name     = "${var.name_prefix}-${local.container_port}-v5"
-  port     = local.container_port
-  protocol = "HTTP"
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  vpc_id      = var.vpc_id
-  target_type = "ip"
-
+  name                 = "${var.name_prefix}-${local.container_port}-${local.suffix}"
+  port                 = local.container_port
+  protocol             = "HTTP"
+  vpc_id               = var.vpc_id
+  target_type          = "ip"
   deregistration_delay = 90
+  tags                 = var.tags
 
   health_check {
     port                = local.container_port
@@ -266,6 +266,10 @@ resource "aws_lb_target_group" "main" {
     matcher             = "200"
   }
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   depends_on = [aws_lb.main]
 }
 
@@ -273,6 +277,7 @@ resource "aws_security_group" "lb_sg" {
   count  = var.vpc_id != "" ? 1 : 0
   name   = "${var.name_prefix}-service-lb-${local.suffix}"
   vpc_id = var.vpc_id
+  tags   = var.tags
 }
 
 resource "aws_security_group_rule" "app_lb_allow_outbound" {
@@ -329,15 +334,13 @@ resource "aws_security_group_rule" "app_lb_allow_all_https" {
 # ECS Service
 #
 module "ecs-service-kibana-proxy" {
-  source = "trussworks/ecs-service/aws"
-  count  = var.vpc_id != "" ? 1 : 0
-
+  source      = "trussworks/ecs-service/aws"
+  count       = var.vpc_id != "" ? 1 : 0
   name        = var.name_prefix
   environment = local.suffix
 
-  associate_alb = var.associate_alb
-  associate_nlb = var.associate_nlb
-
+  associate_alb          = true
+  associate_nlb          = false
   alb_security_group     = aws_security_group.lb_sg[0].id
   nlb_subnet_cidr_blocks = null
 
@@ -360,7 +363,7 @@ module "ecs-service-kibana-proxy" {
   cloudwatch_alarm_cpu_enable = false
   cloudwatch_alarm_mem_enable = false
   target_container_name       = local.target_container_name
-  logs_cloudwatch_group       = local.logs_cloudwatch_group
+  logs_cloudwatch_group       = local.ecs_log_group_name
 
   container_definitions = jsonencode([
     {
@@ -380,7 +383,7 @@ module "ecs-service-kibana-proxy" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = local.logs_cloudwatch_group
+          "awslogs-group"         = local.ecs_log_group_name
           "awslogs-region"        = local.region
           "awslogs-stream-prefix" = "helloworld"
         }

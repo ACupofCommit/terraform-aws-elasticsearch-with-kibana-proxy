@@ -123,5 +123,3 @@ override.tf.json
 
 # End of https://www.toptal.com/developers/gitignore/api/terraform,intellij+all
 
-/example/.terraform/
-/example/.terraform

@@ -56,7 +56,7 @@ const serverlessConfiguration: AWS = {
     // @ts-expect-error
     region: AWS_DEFAULT_REGION,
     lambdaHashingVersion: '20201221',
-    runtime: 'nodejs12.x',
+    runtime: 'nodejs14.x',
     apiGateway: {
       shouldStartNameWithService: true,
       minimumCompressionSize: 1024,
@@ -74,14 +74,12 @@ const serverlessConfiguration: AWS = {
     },
   },
   functions: {
-    test: {
+    main: {
       handler: 'src/handler.index',
       events: [
-        ...['post','get','put','delete'].map(method => ({
-          http: {
-            method, path: '/test',
-          }
-        })),
+        {
+          http: { method: 'get', path: '/main' }
+        },
       ],
       environment: {
         ES_HOST: ES_HOST,
