@@ -52,25 +52,30 @@ from the profile icon `Reset password` menu in the upper right corner.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| es\_availability\_zone\_count | Number of Availability Zones for the domain to use with zone\_awareness\_enabled. 1 means the zone\_awareness\_enabled is false | `number` | `1` | no |
 | es\_ebs\_volume\_size | n/a | `number` | `10` | no |
-| es\_instance\_type | n/a | `string` | `"t3.medium.elasticsearch"` | no |
-| es\_master\_user\_arn | n/a | `string` | `null` | no |
+| es\_encrypt\_at\_rest | n/a | `bool` | `false` | no |
+| es\_master\_node\_count | Dedicated master node count. 0 means that dedecated master nodes are not used. | `number` | `0` | no |
+| es\_master\_node\_type | n/a | `string` | `"m3.medium.elasticsearch"` | no |
 | es\_master\_user\_password | n/a | `string` | `"Change-me!-123"` | no |
-| es\_node\_number | Use it when you want to create es with nodes smaller than the number of private\_subnets provided. It only makes sense when using vpc. | `number` | `null` | no |
+| es\_node\_count | For two or three Availability Zones, we recommend instances in multiples of az count for equal distribution across the Availability Zones. | `number` | `1` | no |
+| es\_node\_to\_node\_encryption | n/a | `bool` | `false` | no |
+| es\_node\_type | n/a | `string` | `"t3.medium.elasticsearch"` | no |
 | kibana\_custom\_domain | Domain for kibana access | `string` | n/a | yes |
 | name\_prefix | For most of resource names | `string` | `"terraform-es"` | no |
-| name\_suffix | If omitted, random string is used. | `string` | n/a | yes |
-| private\_subnets | n/a | `list(string)` | `[]` | no |
-| private\_subnets\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
+| name\_suffix | If omitted, random string is used. | `string` | `""` | no |
+| private\_subnet\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
+| private\_subnet\_ids | n/a | `list(string)` | `[]` | no |
 | public\_subnets | n/a | `list(string)` | `[]` | no |
 | public\_subnets\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
 | route53\_zone\_id | Route53 zone id for kibana\_proxy\_host | `string` | n/a | yes |
 | service\_ingress\_cidr\_rules | n/a | `list(string)` | <pre>[<br>  "0.0.0.0/0"<br>]</pre> | no |
 | tags | n/a | `map(string)` | `{}` | no |
-| vpc\_id | n/a | `string` | `"If you provide vpc_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc."` | no |
+| vpc\_id | If you provide vpc\_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc. | `string` | n/a | yes |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
+| es\_name | elasticsearch\_domain name |
 | output | Resource information for accessing elasticsearch |

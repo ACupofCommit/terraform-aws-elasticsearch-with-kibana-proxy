@@ -60,7 +60,7 @@ module "es_security_group" {
   vpc_id      = var.vpc_id
   tags        = var.tags
   ingress_with_cidr_blocks = [
-    for s in var.public_subnets_cidr_blocks : {
+    for s in var.public_subnet_cidr_blocks : {
       rule        = "https-443-tcp"
       cidr_blocks = s
     }
@@ -76,7 +76,15 @@ resource "aws_elasticsearch_domain" "es" {
   elasticsearch_version = "7.9"
 
   cluster_config {
-    instance_type = var.es_instance_type
+    instance_type            = var.es_node_type
+    instance_count           = var.es_node_count
+    dedicated_master_enabled = var.es_master_node_count > 0 ? true : false
+    dedicated_master_count   = var.es_master_node_count
+    dedicated_master_type    = var.es_master_node_type
+    zone_awareness_enabled   = var.es_availability_zone_count == 1 ? false : true
+    zone_awareness_config {
+      availability_zone_count = var.es_availability_zone_count
+    }
   }
 
   ebs_options {
@@ -87,17 +95,17 @@ resource "aws_elasticsearch_domain" "es" {
   dynamic "vpc_options" {
     for_each = var.vpc_id != "" ? [true] : []
     content {
-      subnet_ids         = var.es_node_number != null ? slice(var.private_subnets, 0, var.es_node_number) : var.private_subnets
+      subnet_ids         = var.private_subnet_ids
       security_group_ids = [module.es_security_group[0].this_security_group_id]
     }
   }
 
   node_to_node_encryption {
-    enabled = true
+    enabled = var.es_node_to_node_encryption
   }
 
   encrypt_at_rest {
-    enabled = true
+    enabled = var.es_encrypt_at_rest
   }
 
   domain_endpoint_options {
@@ -213,7 +221,7 @@ resource "aws_lb" "main" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb_sg[0].id]
-  subnets            = var.public_subnets
+  subnets            = var.public_subnet_ids
 }
 
 resource "aws_lb_listener" "https" {
@@ -353,7 +361,7 @@ module "ecs-service-kibana-proxy" {
   ]
 
   ecs_cluster      = aws_ecs_cluster.main
-  ecs_subnet_ids   = var.public_subnets // TODO: when NAT is used, check that private subnets is availabled
+  ecs_subnet_ids   = var.public_subnet_ids // TODO: when NAT is used, check that private subnets is availabled
   ecs_vpc_id       = var.vpc_id
   ecs_use_fargate  = true
   assign_public_ip = true

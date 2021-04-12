@@ -21,29 +21,29 @@ variable "route53_zone_id" {
 }
 
 variable "vpc_id" {
-  type    = string
+  type        = string
   description = "If you provide vpc_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc."
 }
 
-variable "public_subnets" {
+variable "public_subnet_ids" {
   type    = list(string)
   default = []
 }
-variable "public_subnets_cidr_blocks" {
-  type    = list(string)
-  default = []
-}
-
-variable "private_subnets" {
-  type    = list(string)
-  default = []
-}
-variable "private_subnets_cidr_blocks" {
+variable "public_subnet_cidr_blocks" {
   type    = list(string)
   default = []
 }
 
-variable "es_instance_type" {
+variable "private_subnet_ids" {
+  type    = list(string)
+  default = []
+}
+variable "private_subnet_cidr_blocks" {
+  type    = list(string)
+  default = []
+}
+
+variable "es_node_type" {
   type    = string
   default = "t3.medium.elasticsearch"
 }
@@ -53,20 +53,47 @@ variable "es_ebs_volume_size" {
   default = 10
 }
 
-variable "es_node_number" {
+variable "es_node_count" {
   type        = number
-  description = "Use it when you want to create es with nodes smaller than the number of private_subnets provided. It only makes sense when using vpc."
-  default     = null
-}
-
-variable "service_ingress_cidr_rules" {
-  type    = list(string)
-  default = ["0.0.0.0/0"]
+  description = "For two or three Availability Zones, we recommend instances in multiples of az count for equal distribution across the Availability Zones."
+  default     = 1
 }
 
 variable "es_master_user_password" {
   type    = string
   default = "Change-me!-123"
+}
+
+variable "es_master_node_count" {
+  type        = number
+  description = "Dedicated master node count. 0 means that dedecated master nodes are not used."
+  default     = 0
+}
+
+variable "es_master_node_type" {
+  type    = string
+  default = "m3.medium.elasticsearch"
+}
+
+variable "es_node_to_node_encryption" {
+  type    = bool
+  default = false
+}
+
+variable "es_encrypt_at_rest" {
+  type    = bool
+  default = false
+}
+
+variable "es_availability_zone_count" {
+  type        = number
+  description = "Number of Availability Zones for the domain to use with zone_awareness_enabled. 1 means the zone_awareness_enabled is false"
+  default     = 1
+}
+
+variable "service_ingress_cidr_rules" {
+  type    = list(string)
+  default = ["0.0.0.0/0"]
 }
 
 variable "tags" {
