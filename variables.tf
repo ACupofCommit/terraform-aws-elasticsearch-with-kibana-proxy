@@ -96,6 +96,16 @@ variable "service_ingress_cidr_rules" {
   default = ["0.0.0.0/0"]
 }
 
+variable "create_consumer_security_group" {
+  type    = bool
+  default = false
+}
+
+variable "consumer_security_group_id" {
+  type    = string
+  default = null
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

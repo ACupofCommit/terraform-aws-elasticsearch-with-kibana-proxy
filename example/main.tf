@@ -27,22 +27,22 @@ data "aws_route53_zone" "selected" {
 }
 
 module "es_and_kibana" {
-  source                      = "../"
-  name_prefix                 = local.name_prefix
-  vpc_id                      = module.vpc.vpc_id
-  public_subnet_ids              = module.vpc.public_subnets
+  source                     = "../"
+  name_prefix                = local.name_prefix
+  vpc_id                     = module.vpc.vpc_id
+  public_subnet_ids          = module.vpc.public_subnets
   public_subnet_cidr_blocks  = module.vpc.public_subnets_cidr_blocks
-  private_subnet_ids          = module.vpc.private_subnets
+  private_subnet_ids         = module.vpc.private_subnets
   private_subnet_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  route53_zone_id             = data.aws_route53_zone.selected.zone_id
-  kibana_custom_domain        = "kibana.example.com"
-  es_availability_zone_count  = 2
-  es_node_type                = "t3.medium.elasticsearch"
-  es_node_count               = 2
-  es_master_node_count        = 3
-  es_master_node_type         = "t3.medium.elasticsearch"
-  es_node_to_node_encryption  = true
-  es_encrypt_at_rest          = true
+  route53_zone_id            = data.aws_route53_zone.selected.zone_id
+  kibana_custom_domain       = "kibana.example.com"
+  es_availability_zone_count = 2
+  es_node_type               = "t3.medium.elasticsearch"
+  es_node_count              = 2
+  es_master_node_count       = 3
+  es_master_node_type        = "t3.medium.elasticsearch"
+  es_node_to_node_encryption = true
+  es_encrypt_at_rest         = true
 }
 
 output "output" {

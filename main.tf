@@ -40,7 +40,7 @@ resource "aws_route53_record" "kibana" {
 }
 
 module "lambda_security_group" {
-  count       = var.vpc_id != "" ? 1 : 0
+  count       = var.create_consumer_security_group && var.vpc_id != "" ? 1 : 0
   source      = "terraform-aws-modules/security-group/aws"
   name        = "${var.name_prefix}-lambda-${local.suffix}"
   description = "${var.name_prefix} lambda security group"
@@ -49,6 +49,7 @@ module "lambda_security_group" {
   egress_with_source_security_group_id = [{
     rule                     = "https-443-tcp"
     source_security_group_id = module.es_security_group[0].this_security_group_id
+    description              = "for elasticsearch connection"
   }]
 }
 
@@ -63,12 +64,18 @@ module "es_security_group" {
     for s in var.public_subnet_cidr_blocks : {
       rule        = "https-443-tcp"
       cidr_blocks = s
+      description = "kibana connection"
     }
   ]
-  ingress_with_source_security_group_id = [{
+  ingress_with_source_security_group_id = concat([], length(module.lambda_security_group) > 0 ? [{
     rule                     = "https-443-tcp"
     source_security_group_id = module.lambda_security_group[0].this_security_group_id
-  }]
+    description              = "log delivery"
+  }] : [], var.consumer_security_group_id != null ? [{
+    rule                     = "https-443-tcp"
+    source_security_group_id = var.consumer_security_group_id
+    description              = "log delivery"
+  }] : [])
 }
 
 resource "aws_elasticsearch_domain" "es" {
@@ -286,7 +293,7 @@ resource "aws_lb_target_group" "main" {
 
 resource "aws_security_group" "lb_sg" {
   count  = var.vpc_id != "" ? 1 : 0
-  name   = "${var.name_prefix}-service-lb-${local.suffix}"
+  name   = "${var.name_prefix}-alb-${local.suffix}"
   vpc_id = var.vpc_id
   tags   = var.tags
 }
@@ -297,28 +304,9 @@ resource "aws_security_group_rule" "app_lb_allow_outbound" {
   type                     = "egress"
   from_port                = local.container_port
   to_port                  = local.container_port
-  protocol                 = "-1"
-  source_security_group_id = module.es_security_group[0].this_security_group_id
-}
-
-resource "aws_security_group_rule" "app_lb_allow_outbound_2" {
-  count             = var.vpc_id != "" ? 1 : 0
-  security_group_id = aws_security_group.lb_sg[0].id
-  type              = "egress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-}
-
-resource "aws_security_group_rule" "app_lb_allow_outbound_3" {
-  count                    = var.vpc_id != "" ? 1 : 0
-  security_group_id        = aws_security_group.lb_sg[0].id
-  type                     = "egress"
-  from_port                = local.container_port
-  to_port                  = local.container_port
   protocol                 = "tcp"
   source_security_group_id = module.ecs-service-kibana-proxy[0].ecs_security_group_id
+  description              = "ecs service connection"
 }
 
 resource "aws_security_group_rule" "app_lb_allow_all_http" {
