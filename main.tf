@@ -82,8 +82,11 @@ resource "aws_elasticsearch_domain" "es" {
     dedicated_master_count   = var.es_master_node_count
     dedicated_master_type    = var.es_master_node_type
     zone_awareness_enabled   = var.es_availability_zone_count == 1 ? false : true
-    zone_awareness_config {
-      availability_zone_count = var.es_availability_zone_count
+    dynamic "zone_awareness_config" {
+      for_each = var.es_availability_zone_count > 1 ? [true] : []
+      content {
+        availability_zone_count = var.es_availability_zone_count
+      }
     }
   }
 
