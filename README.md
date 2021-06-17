@@ -52,6 +52,8 @@ from the profile icon `Reset password` menu in the upper right corner.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| consumer\_security\_group\_id | n/a | `string` | `null` | no |
+| create\_consumer\_security\_group | n/a | `bool` | `false` | no |
 | es\_availability\_zone\_count | Number of Availability Zones for the domain to use with zone\_awareness\_enabled. 1 means the zone\_awareness\_enabled is false | `number` | `1` | no |
 | es\_ebs\_volume\_size | n/a | `number` | `10` | no |
 | es\_encrypt\_at\_rest | n/a | `bool` | `false` | no |
@@ -66,11 +68,13 @@ from the profile icon `Reset password` menu in the upper right corner.
 | name\_suffix | If omitted, random string is used. | `string` | `""` | no |
 | private\_subnet\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
 | private\_subnet\_ids | n/a | `list(string)` | `[]` | no |
-| public\_subnets | n/a | `list(string)` | `[]` | no |
-| public\_subnets\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
+| public\_subnet\_cidr\_blocks | n/a | `list(string)` | `[]` | no |
+| public\_subnet\_ids | n/a | `list(string)` | `[]` | no |
 | route53\_zone\_id | Route53 zone id for kibana\_proxy\_host | `string` | n/a | yes |
 | service\_ingress\_cidr\_rules | n/a | `list(string)` | <pre>[<br>  "0.0.0.0/0"<br>]</pre> | no |
+| ssl\_policy | n/a | `string` | `"ELBSecurityPolicy-2016-08"` | no |
 | tags | n/a | `map(string)` | `{}` | no |
+| use\_vpc | n/a | `bool` | `true` | no |
 | vpc\_id | If you provide vpc\_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc. | `string` | n/a | yes |
 
 ## Outputs
