@@ -111,7 +111,7 @@ variable "consumer_security_group_id" {
   default = null
 }
 
-variable "ssl_policy" {
+variable "alb_ssl_policy" {
   type = string
   default = "ELBSecurityPolicy-2016-08"
 }
