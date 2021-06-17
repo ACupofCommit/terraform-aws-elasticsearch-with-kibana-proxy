@@ -28,7 +28,7 @@ module "acm" {
 }
 
 resource "aws_route53_record" "kibana" {
-  count   = var.vpc_id != "" ? 1 : 0
+  count   = var.use_vpc ? 1 : 0
   zone_id = var.route53_zone_id
   name    = var.kibana_custom_domain
   type    = "A"
@@ -40,22 +40,24 @@ resource "aws_route53_record" "kibana" {
 }
 
 module "lambda_security_group" {
-  count       = var.create_consumer_security_group && var.vpc_id != "" ? 1 : 0
+  count       = var.create_consumer_security_group && var.use_vpc ? 1 : 0
   source      = "terraform-aws-modules/security-group/aws"
+  version     = "~> v4.2.0"
   name        = "${var.name_prefix}-lambda-${local.suffix}"
   description = "${var.name_prefix} lambda security group"
   vpc_id      = var.vpc_id
   tags        = var.tags
   egress_with_source_security_group_id = [{
     rule                     = "https-443-tcp"
-    source_security_group_id = module.es_security_group[0].this_security_group_id
+    source_security_group_id = module.es_security_group[0].security_group_id
     description              = "for elasticsearch connection"
   }]
 }
 
 module "es_security_group" {
-  count       = var.vpc_id != "" ? 1 : 0
   source      = "terraform-aws-modules/security-group/aws"
+  version     = "~> v4.2.0"
+  count       = var.use_vpc ? 1 : 0
   name        = "${var.name_prefix}-es-${local.suffix}"
   description = "${var.name_prefix} elasticsearch security group"
   vpc_id      = var.vpc_id
@@ -69,7 +71,7 @@ module "es_security_group" {
   ]
   ingress_with_source_security_group_id = concat([], length(module.lambda_security_group) > 0 ? [{
     rule                     = "https-443-tcp"
-    source_security_group_id = module.lambda_security_group[0].this_security_group_id
+    source_security_group_id = module.lambda_security_group[0].security_group_id
     description              = "log delivery"
   }] : [], var.consumer_security_group_id != null ? [{
     rule                     = "https-443-tcp"
@@ -106,7 +108,7 @@ resource "aws_elasticsearch_domain" "es" {
     for_each = var.vpc_id != "" ? [true] : []
     content {
       subnet_ids         = var.private_subnet_ids
-      security_group_ids = [module.es_security_group[0].this_security_group_id]
+      security_group_ids = [module.es_security_group[0].security_group_id]
     }
   }
 
@@ -121,7 +123,7 @@ resource "aws_elasticsearch_domain" "es" {
   domain_endpoint_options {
     enforce_https                   = true
     tls_security_policy             = "Policy-Min-TLS-1-2-2019-07"
-    custom_endpoint_enabled         = var.vpc_id != "" ? false : true
+    custom_endpoint_enabled         = var.use_vpc ? false : true
     custom_endpoint                 = var.kibana_custom_domain
     custom_endpoint_certificate_arn = module.acm.this_acm_certificate_arn
   }
@@ -226,7 +228,7 @@ resource "aws_ecs_cluster" "main" {
 # ALB
 #
 resource "aws_lb" "main" {
-  count              = var.vpc_id != "" ? 1 : 0
+  count              = var.use_vpc ? 1 : 0
   name               = "${var.name_prefix}-${local.suffix}"
   internal           = false
   load_balancer_type = "application"
@@ -292,14 +294,14 @@ resource "aws_lb_target_group" "main" {
 }
 
 resource "aws_security_group" "lb_sg" {
-  count  = var.vpc_id != "" ? 1 : 0
+  count  = var.use_vpc ? 1 : 0
   name   = "${var.name_prefix}-alb-${local.suffix}"
   vpc_id = var.vpc_id
   tags   = var.tags
 }
 
 resource "aws_security_group_rule" "app_lb_allow_outbound" {
-  count                    = var.vpc_id != "" ? 1 : 0
+  count                    = var.use_vpc ? 1 : 0
   security_group_id        = aws_security_group.lb_sg[0].id
   type                     = "egress"
   from_port                = local.container_port
@@ -310,7 +312,7 @@ resource "aws_security_group_rule" "app_lb_allow_outbound" {
 }
 
 resource "aws_security_group_rule" "app_lb_allow_all_http" {
-  count             = var.vpc_id != "" ? 1 : 0
+  count             = var.use_vpc ? 1 : 0
   security_group_id = aws_security_group.lb_sg[0].id
   type              = "ingress"
   from_port         = 80
@@ -320,7 +322,7 @@ resource "aws_security_group_rule" "app_lb_allow_all_http" {
 }
 
 resource "aws_security_group_rule" "app_lb_allow_all_https" {
-  count             = var.vpc_id != "" ? 1 : 0
+  count             = var.use_vpc ? 1 : 0
   security_group_id = aws_security_group.lb_sg[0].id
   type              = "ingress"
   from_port         = 443
@@ -334,7 +336,8 @@ resource "aws_security_group_rule" "app_lb_allow_all_https" {
 #
 module "ecs-service-kibana-proxy" {
   source      = "trussworks/ecs-service/aws"
-  count       = var.vpc_id != "" ? 1 : 0
+  version     = "~> v6.4.0"
+  count       = var.use_vpc ? 1 : 0
   name        = var.name_prefix
   environment = local.suffix
 

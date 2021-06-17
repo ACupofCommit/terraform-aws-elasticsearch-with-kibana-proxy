@@ -25,6 +25,11 @@ variable "vpc_id" {
   description = "If you provide vpc_id, elasticsearch will be deployed in that vpc. Or it is distributed outside the vpc."
 }
 
+variable "use_vpc" {
+  type    = bool
+  default = true
+}
+
 variable "public_subnet_ids" {
   type    = list(string)
   default = []
