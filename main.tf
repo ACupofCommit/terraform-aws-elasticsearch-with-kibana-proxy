@@ -242,6 +242,7 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   certificate_arn   = module.acm.this_acm_certificate_arn
+  ssl_policy        = var.ssl_policy
 
   default_action {
     target_group_arn = aws_lb_target_group.main.id
