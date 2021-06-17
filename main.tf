@@ -306,7 +306,7 @@ resource "aws_security_group_rule" "app_lb_allow_outbound" {
   from_port                = local.container_port
   to_port                  = local.container_port
   protocol                 = "tcp"
-  source_security_group_id = module.ecs-service-kibana-proxy[0].ecs_security_group_id
+  source_security_group_id = aws_security_group.ecs_sg.id
   description              = "${var.name_prefix} ALB to ECS(proxy for ES Kibana) connection"
 }
 
@@ -336,17 +336,17 @@ resource "aws_security_group_rule" "app_lb_allow_all_https" {
 # ECS Service
 #
 module "ecs-service-kibana-proxy" {
-  source      = "trussworks/ecs-service/aws"
-  version     = "~> v6.4.0"
-  count       = var.use_vpc ? 1 : 0
-  name        = var.name_prefix
-  environment = local.suffix
-
-  associate_alb          = true
-  associate_nlb          = false
-  alb_security_group     = aws_security_group.lb_sg[0].id
-  nlb_subnet_cidr_blocks = null
-
+  source                        = "trussworks/ecs-service/aws"
+  version                       = "~> v6.4.0"
+  count                         = var.use_vpc ? 1 : 0
+  name                          = var.name_prefix
+  environment                   = var.name_suffix
+  manage_ecs_security_group     = false
+  associate_alb                 = true
+  associate_nlb                 = false
+  alb_security_group            = aws_security_group.lb_sg[0].id
+  additional_security_group_ids = [aws_security_group.ecs_sg.id]
+  nlb_subnet_cidr_blocks        = null
   lb_target_groups = [
     {
       lb_target_group_arn         = aws_lb_target_group.main.arn
