@@ -50,7 +50,7 @@ module "lambda_security_group" {
   egress_with_source_security_group_id = [{
     rule                     = "https-443-tcp"
     source_security_group_id = module.es_security_group[0].security_group_id
-    description              = "for elasticsearch connection"
+    description              = "Log consumer(Lambda) to ES connection"
   }]
 }
 
@@ -66,17 +66,17 @@ module "es_security_group" {
     for s in var.public_subnet_cidr_blocks : {
       rule        = "https-443-tcp"
       cidr_blocks = s
-      description = "kibana connection"
+      description = "subnet to ESS kibana connection"
     }
   ]
   ingress_with_source_security_group_id = concat([], length(module.lambda_security_group) > 0 ? [{
     rule                     = "https-443-tcp"
     source_security_group_id = module.lambda_security_group[0].security_group_id
-    description              = "log delivery"
+    description              = "log consumer(lambda) to ES"
   }] : [], var.consumer_security_group_id != null ? [{
     rule                     = "https-443-tcp"
     source_security_group_id = var.consumer_security_group_id
-    description              = "log delivery"
+    description              = "log consumer(lambda) to ES"
   }] : [])
 }
 
@@ -163,9 +163,7 @@ CONFIG
     automated_snapshot_start_hour = 23
   }
 
-  tags = {
-    Domain = "TestDomain"
-  }
+  tags = var.tags
 }
 
 
@@ -309,7 +307,7 @@ resource "aws_security_group_rule" "app_lb_allow_outbound" {
   to_port                  = local.container_port
   protocol                 = "tcp"
   source_security_group_id = module.ecs-service-kibana-proxy[0].ecs_security_group_id
-  description              = "ecs service connection"
+  description              = "${var.name_prefix} ALB to ECS(proxy for ES Kibana) connection"
 }
 
 resource "aws_security_group_rule" "app_lb_allow_all_http" {
@@ -320,6 +318,7 @@ resource "aws_security_group_rule" "app_lb_allow_all_http" {
   to_port           = 80
   protocol          = "tcp"
   cidr_blocks       = var.service_ingress_cidr_rules
+  description       = "${var.name_prefix} ALB service port"
 }
 
 resource "aws_security_group_rule" "app_lb_allow_all_https" {
@@ -330,6 +329,7 @@ resource "aws_security_group_rule" "app_lb_allow_all_https" {
   to_port           = 443
   protocol          = "tcp"
   cidr_blocks       = var.service_ingress_cidr_rules
+  description       = "${var.name_prefix} ALB service port"
 }
 
 #
