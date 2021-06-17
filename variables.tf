@@ -7,7 +7,6 @@ variable "name_prefix" {
 variable "name_suffix" {
   type        = string
   description = "If omitted, random string is used."
-  default     = ""
 }
 
 variable "kibana_custom_domain" {

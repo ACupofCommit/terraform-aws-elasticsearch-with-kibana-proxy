@@ -26,9 +26,14 @@ data "aws_route53_zone" "selected" {
   private_zone = false
 }
 
+resource "random_id" "suffix" {
+  byte_length = 2
+}
+
 module "es_and_kibana" {
   source                     = "../"
   name_prefix                = local.name_prefix
+  name_suffix                = random_id.suffix.hex
   vpc_id                     = module.vpc.vpc_id
   use_vpc                    = true
   public_subnet_ids          = module.vpc.public_subnets

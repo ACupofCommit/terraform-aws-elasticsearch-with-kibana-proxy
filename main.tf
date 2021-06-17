@@ -3,19 +3,14 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-resource "random_id" "suffix" {
-  byte_length = 2
-}
-
 locals {
-  suffix                = var.name_suffix != "" ? var.name_suffix : random_id.suffix.hex
   region                = data.aws_region.current.name
   account_id            = data.aws_caller_identity.current.account_id
   nginx_config_template = base64encode(file("${path.module}/assets/default.template"))
-  es_name               = "${var.name_prefix}-${local.suffix}"
+  es_name               = "${var.name_prefix}-${var.name_suffix}"
   container_port        = 80
-  target_container_name = "${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
-  ecs_log_group_name    = "/ecs/${var.name_prefix}-kibana-nginx-proxy-${local.suffix}"
+  target_container_name = "${var.name_prefix}-kibana-nginx-proxy-${var.name_suffix}"
+  ecs_log_group_name    = "/ecs/${var.name_prefix}-kibana-nginx-proxy-${var.name_suffix}"
 }
 
 module "acm" {
@@ -43,7 +38,7 @@ module "lambda_security_group" {
   count       = var.create_consumer_security_group && var.use_vpc ? 1 : 0
   source      = "terraform-aws-modules/security-group/aws"
   version     = "~> v4.2.0"
-  name        = "${var.name_prefix}-lambda-${local.suffix}"
+  name        = "${var.name_prefix}-lambda-${var.name_suffix}"
   description = "${var.name_prefix} lambda security group"
   vpc_id      = var.vpc_id
   tags        = var.tags
@@ -58,7 +53,7 @@ module "es_security_group" {
   source      = "terraform-aws-modules/security-group/aws"
   version     = "~> v4.2.0"
   count       = var.use_vpc ? 1 : 0
-  name        = "${var.name_prefix}-es-${local.suffix}"
+  name        = "${var.name_prefix}-es-${var.name_suffix}"
   description = "${var.name_prefix} elasticsearch security group"
   vpc_id      = var.vpc_id
   tags        = var.tags
@@ -219,7 +214,7 @@ resource "aws_kms_key" "main" {
 #
 
 resource "aws_ecs_cluster" "main" {
-  name = "${var.name_prefix}-${local.suffix}"
+  name = "${var.name_prefix}-${var.name_suffix}"
 }
 
 #
@@ -227,7 +222,7 @@ resource "aws_ecs_cluster" "main" {
 #
 resource "aws_lb" "main" {
   count              = var.use_vpc ? 1 : 0
-  name               = "${var.name_prefix}-${local.suffix}"
+  name               = "${var.name_prefix}-${var.name_suffix}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb_sg[0].id]
@@ -266,7 +261,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_target_group" "main" {
-  name                 = "${var.name_prefix}-${local.container_port}-${local.suffix}"
+  name                 = "${var.name_prefix}-${local.container_port}-${var.name_suffix}"
   port                 = local.container_port
   protocol             = "HTTP"
   vpc_id               = var.vpc_id
@@ -294,7 +289,7 @@ resource "aws_lb_target_group" "main" {
 
 resource "aws_security_group" "lb_sg" {
   count  = var.use_vpc ? 1 : 0
-  name   = "${var.name_prefix}-alb-${local.suffix}"
+  name   = "${var.name_prefix}-alb-${var.name_suffix}"
   vpc_id = var.vpc_id
   tags   = var.tags
 }
@@ -355,14 +350,12 @@ module "ecs-service-kibana-proxy" {
     },
   ]
 
-  ecs_cluster      = aws_ecs_cluster.main
-  ecs_subnet_ids   = var.public_subnet_ids // TODO: when NAT is used, check that private subnets is availabled
-  ecs_vpc_id       = var.vpc_id
-  ecs_use_fargate  = true
-  assign_public_ip = true
-
-  kms_key_id = aws_kms_key.main.arn
-
+  ecs_cluster                 = aws_ecs_cluster.main
+  ecs_subnet_ids              = var.public_subnet_ids // TODO: if NAT does exist, private subnets can be used.
+  ecs_vpc_id                  = var.vpc_id
+  ecs_use_fargate             = true
+  assign_public_ip            = true
+  kms_key_id                  = aws_kms_key.main.arn
   cloudwatch_alarm_cpu_enable = false
   cloudwatch_alarm_mem_enable = false
   target_container_name       = local.target_container_name
